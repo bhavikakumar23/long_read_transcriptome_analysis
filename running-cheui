@@ -1,0 +1,110 @@
+# Preprocessing Data before running cheui
+
+# Raw signals basecalled using Guppy
+# Basecalled sequences should be aligned to reference transcriptome using minimap2 
+
+#ref_transcriptome=/home/u7442965/ash_nvme_direct_rna/genomes/p_graminis/Puccinia_graminis_transcriptome.fa 
+#file=/home/u7442965/ash_nvme_direct_rna/all_fastq/apsi_r3.fastq
+#out=/home/u7442965/ash_nvme_direct_rna/cheui/apsi_r3_sorted.bam
+
+
+#minimap2 -t 4 -ax map-ont -k14 $ref_transcriptome $file | samtools view -F 2324 -b > $out
+#samtools index $out  
+
+# This command works
+#minimap2 -t 4 -ax map-ont -k14 $ref_transcriptome $file | samtools view -bh | samtools sort  > $out
+#samtools index $out
+ 
+# Signal data should be resquiggled to aligned sequences using Nanopolish, ensuring that events are rescaled
+
+#seq_summary=/home/u7442965/ash_nvme_direct_rna/raw_fastq/apsi_r3_SQK-RNA002_FLO-MIN106D_fastq/sequencing_summary.txt
+#fast5=/home/u7442965/ash_nvme_direct_rna/raw_fast5/apsi_r3_SQK-RNA002_FLO-MIN106D
+#fastq=/home/u7442965/ash_nvme_direct_rna/all_fastq/apsi_r3.fastq
+#nano=/home/u7442965/ash_nvme_direct_rna/cheui/nanopolish/nanopolish
+
+#$nano index -s $seq_summary -d $fast5 $fastq
+
+# nanopolish index output was added to the path where fastq was. It didn't create any separate file of the output
+
+#fastq=/home/u7442965/ash_nvme_direct_rna/all_fastq/apsi_r3.fastq
+#sorted_bam=/home/u7442965/ash_nvme_direct_rna/cheui/apsi_r3_sorted.bam
+#ref_transcriptome=/home/u7442965/ash_nvme_direct_rna/genomes/p_graminis/Puccinia_graminis_transcriptome.fa
+#nanopolish_apsi_r3_out=/home/u7442965/ash_nvme_direct_rna/cheui/nanopolish_apsi_r3_out.txt
+#nano=/home/u7442965/ash_nvme_direct_rna/cheui/nanopolish/nanopolish
+
+#$nano eventalign -t 24 \
+#--reads $fastq \
+#--bam $sorted_bam \
+#--genome $ref_transcriptome \
+#--scale-events --signal-index --samples --print-read-names > $nanopolish_apsi_r3_out
+
+##############################################
+# CHEUI Preprocessing
+
+# For m6A
+#script_m6A=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/scripts/CHEUI_preprocess_m6A.py
+#nano_out=/home/u7442965/ash_nvme_direct_rna/cheui/nanopolish_apsi_r3_out.txt
+#kmer_model=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/kmer_models/model_kmer.csv
+
+#python3 $script_m6A -i $nano_out -m $kmer_model -o out_A_signals+IDs.p -n 15
+
+# For m5C
+#script_m5C=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/scripts/CHEUI_preprocess_m5C.py
+#nano_out=/home/u7442965/ash_nvme_direct_rna/cheui/nanopolish_apsi_r1_induro_out.txt
+#kmer_model=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/kmer_models/model_kmer.csv
+
+#python3 $script_m5C -i $nano_out -m $kmer_model -o out_C_signals+IDs.p -n 15
+
+##############################################
+# CHEUI Model I
+# This model takes the output of nanopolish from the previous step and calculates with m6A_model_1 the m6A methylation probability
+# in individual read signals at each individual A nucleotide and with m5C at each individial C nucleotide. 
+
+# For m6A
+#script_model_1=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/scripts/CHEUI_predict_model1.py
+#trained_m6A_1=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/CHEUI_trained_models/CHEUI_m6A_model1.h5
+#out_m6A_model_1=/home/u7442965/ash_nvme_direct_rna/cheui/read_level_m6A_predictions.txt
+#out_A_signals=/home/u7442965/ash_nvme_direct_rna/cheui/out_A_signals+IDs.p/nanopolish_apsi_r3_out_signals+IDS.p
+
+#python $script_model_1 -i $out_A_signals -m $trained_m6A_1 -o $out_m6A_model_1 -l apsi_r3
+
+# For m5C
+#script_model_1=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/scripts/CHEUI_predict_model1.py
+#trained_m5C_1=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/CHEUI_trained_models/CHEUI_m5C_model1.h5
+#out_m5C_model_1=/home/u7442965/ash_nvme_direct_rna/cheui/read_level_m5C_predictions.txt
+
+#python $script_model_1 -i out_C_signals+IDs.p/nanopolish_output_test_signals+IDS.p -m $trained_m5C_1 -o $out_m5C_model_1 -l WT_rep1
+
+# The output from model 1 needs to be sorted before using model 2 to predict m6A or m5C at transcriptomic sites
+# For m6A
+#out_m6A_model_1=/home/u7442965/ash_nvme_direct_rna/cheui/read_level_m6A_predictions.txt
+#out_m6A_model_1_sorted=/home/u7442965/ash_nvme_direct_rna/cheui/read_level_m6A_predictions_sorted.txt
+
+#sort -k1 --parallel=15 $out_m6A_model_1 > $out_m6A_model_1_sorted
+
+# For m5C
+#out_m5C_model_1=/home/u7442965/ash_nvme_direct_rna/cheui/read_level_m5C_predictions.txt
+#out_m5C_model_1_sorted=/home/u7442965/ash_nvme_direct_rna/cheui/read_level_m5C_predictions_sorted.txt
+
+#sort -k1 --parallel=15 $out_m5C_model_1 > $out_m5C_model_1_sorted
+
+##############################################
+# CHEUI Model II
+
+# This model calculates the probability and stoichiometry for m6A or m5C at each transcriptomic site. 
+
+# For m6A
+script_model_2=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/scripts/CHEUI_predict_model2.py
+out_m6A_model_1_sorted=/home/u7442965/ash_nvme_direct_rna/cheui/read_level_m6A_predictions_sorted.txt
+trained_m6A_2=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/CHEUI_trained_models/CHEUI_m6A_model2.h5
+out_m6A_model_2=/home/u7442965/ash_nvme_direct_rna/cheui/site_level_m6A_predictions.txt
+
+python3 $script_model_2 -i $out_m6A_model_1_sorted -m $trained_m6A_2 -o $out_m6A_model_2
+
+# For m5C
+#script_model_2=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/scripts/CHEUI_predict_model2.py
+#out_m5C_model_1_sorted=/home/u7442965/ash_nvme_direct_rna/cheui/read_level_m5C_predictions_sorted.txt
+#trained_m5C_2=/home/u7442965/ash_nvme_direct_rna/cheui/CHEUI/CHEUI_trained_models/CHEUI_m5C_model2.h5
+#out_m5C_model_2=/home/u7442965/ash_nvme_direct_rna/cheui/site_level_m5C_predictions.txt
+
+#python3 $script_model_2 -i $out_m5C_model_1_sorted -m $trained_m5C_2 -o $out_m5C_model_2
